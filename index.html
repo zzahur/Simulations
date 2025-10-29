@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Projectile Simulator with Osculating Circle</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(to top, #bde0fe 0%, #caf0f8 100%);
+    height: 100%;
+    overflow: hidden;
+    font-family: sans-serif;
+  }
+  .controls {
+    text-align: center;
+    padding: 10px;
+    background: rgba(255,255,255,0.8);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .controls label {
+    margin: 0 1em;
+    font-weight: 600;
+  }
+  canvas {
+    width: 100%;
+    height: calc(100vh - 80px);
+    display: block;
+  }
+</style>
+</head>
+<body>
+<div class="controls">
+  <label>Velocity v₀: <input type="range" id="v0" min="5" max="80" value="30" step="1"> <span id="v0val">30</span> m/s</label>
+  <label>Angle θ: <input type="range" id="angle" min="5" max="85" value="45" step="1"> <span id="angval">45</span>°</label>
+  <span style="margin-left:2em;">Radius of Curvature (R): <strong id="radiusval">0</strong> m</span>
+</div>
+<canvas id="simCanvas"></canvas>
+
+<script>
+const g = 9.81; // m/s^2
+const canvas = document.getElementById("simCanvas");
+const ctx = canvas.getContext("2d");
+const v0Slider = document.getElementById("v0");
+const angleSlider = document.getElementById("angle");
+const v0Val = document.getElementById("v0val");
+const angVal = document.getElementById("angval");
+const radiusVal = document.getElementById("radiusval");
+
+let v0 = parseFloat(v0Slider.value);
+let angleDeg = parseFloat(angleSlider.value);
+
+// Resize canvas responsively
+function resizeCanvas() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+  draw();
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+v0Slider.oninput = angleSlider.oninput = function() {
+  v0 = parseFloat(v0Slider.value);
+  angleDeg = parseFloat(angleSlider.value);
+  v0Val.textContent = v0;
+  angVal.textContent = angleDeg;
+  draw();
+};
+
+function draw() {
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // background
+  const grd = ctx.createLinearGradient(0, 0, 0, h);
+  grd.addColorStop(0, "#90e0ef");
+  grd.addColorStop(1, "#00b4d8");
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, w, h);
+
+  // ground
+  ctx.fillStyle = "#6c757d";
+  ctx.fillRect(0, h - 50, w, 50);
+
+  const angle = angleDeg * Math.PI / 180;
+  const vx = v0 * Math.cos(angle);
+  const vy = v0 * Math.sin(angle);
+
+  const t_flight = (2 * vy) / g;
+  const t_apex = vy / g;
+  const x_apex = vx * t_apex;
+  const y_apex = (vy * vy) / (2 * g);
+  const R = (vx * vx) / g; // radius of curvature at apex
+  radiusVal.textContent = R.toFixed(2);
+
+  // scaling factors
+  const xRange = vx * t_flight;
+  const yRange = y_apex * 1.4;
+  const margin = 20;
+  const scaleX = (w - 2 * margin) / xRange;
+  const scaleY = (h - 100 - 2 * margin) / yRange;
+  const s = Math.min(scaleX, scaleY);
+
+  function toX(x) { return margin + x * s; }
+  function toY(y) { return h - 50 - y * s; }
+
+  // trajectory
+  ctx.beginPath();
+  for (let i = 0; i <= 200; i++) {
+    const t = (i / 200) * t_flight;
+    const x = vx * t;
+    const y = vy * t - 0.5 * g * t * t;
+    const X = toX(x);
+    const Y = toY(y);
+    if (i === 0) ctx.moveTo(X, Y);
+    else ctx.lineTo(X, Y);
+  }
+  ctx.strokeStyle = "#03045e";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // apex point
+  const Xapex = toX(x_apex);
+  const Yapex = toY(y_apex);
+  ctx.beginPath();
+  ctx.arc(Xapex, Yapex, 6, 0, 2*Math.PI);
+  ctx.fillStyle = "#ef233c";
+  ctx.fill();
+
+  // osculating circle
+  const Cx = toX(x_apex);
+  const Cy = toY(y_apex - R);
+  const Rpx = R * s;
+  ctx.beginPath();
+  ctx.arc(Cx, Cy, Rpx, 0, 2*Math.PI);
+  ctx.strokeStyle = "#00b4d8";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // line
