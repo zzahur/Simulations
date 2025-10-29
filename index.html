@@ -1,166 +1,258 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Projectile Motion & Osculating Circle</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(to bottom, #a0d8ef, #f0f9ff);
-      text-align: center;
-      margin: 0;
-      padding: 0;
-      color: #222;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Projectile Motion & Osculating Circle</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(to bottom, #a0d8ef, #f0f9ff);
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    color: #222;
+  }
 
-    h2 {
-      margin: 10px 0 5px;
-      color: #004466;
-    }
+  h2 {
+    margin: 10px 0 5px;
+    color: #004466;
+  }
 
-    .controls {
-      background: #e0f7fa;
-      padding: 10px;
-      border-bottom: 2px solid #00838f;
-    }
+  .controls {
+    background: #e0f7fa;
+    padding: 10px;
+    border-bottom: 2px solid #00838f;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
 
-    label {
-      margin: 0 10px;
-      font-weight: bold;
-      color: #006064;
-    }
+  label {
+    margin: 0 10px;
+    font-weight: bold;
+    color: #006064;
+  }
 
-    input[type=range] {
-      width: 120px;
-    }
+  input[type=range] {
+    width: 120px;
+    vertical-align: middle;
+  }
 
-    #runBtn {
-      background-color: #00838f;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 6px 14px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background 0.2s ease;
-    }
+  input[type=number] {
+    width: 80px;
+    padding: 2px 4px;
+    margin-left: 4px;
+  }
 
-    #runBtn:hover {
-      background-color: #006064;
-    }
+  #runBtn {
+    background-color: #00838f;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    margin-left: 10px;
+  }
 
-    canvas {
-      width: 100%;
-      height: 600px;  /* fixed height for visibility */
-      display: block;
-      background: linear-gradient(to top, #5cc0ff, #aeeaff);
-    }
+  #runBtn:hover {
+    background-color: #006064;
+  }
 
-    #radiusInfo {
-      font-weight: bold;
-      margin: 5px;
-    }
-  </style>
+  .zoom-controls button {
+    background: #e0f2f1;
+    border: 1px solid #00838f;
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 16px;
+    margin: 0 2px;
+    transition: background 0.2s;
+  }
+
+  .zoom-controls button:hover {
+    background: #b2ebf2;
+  }
+
+  canvas {
+    width: 100%;
+    height: 600px;
+    display: block;
+    background: linear-gradient(to top, #5cc0ff, #aeeaff);
+  }
+
+  #radiusInfo {
+    font-weight: bold;
+    margin: 5px;
+  }
+</style>
 </head>
 <body>
-  <h2>Projectile Motion with Osculating Circle</h2>
-  <div class="controls">
-    <label>Velocity (m/s): <input id="velocity" type="range" min="5" max="50" value="25" /></label>
-    <label>Angle (°): <input id="angle" type="range" min="10" max="80" value="45" /></label>
-    <button id="runBtn">Run</button>
-    <div id="radiusInfo">Radius of curvature: </div>
+<h2>Projectile Motion with Osculating Circle</h2>
+<div class="controls">
+  <label>
+    Velocity (m/s):
+    <input id="velocity" type="range" min="5" max="50" value="25" step="0.001" />
+    <input id="velocityInput" type="number" min="5" max="50" value="25.000" step="0.001" />
+  </label>
+  <label>
+    Angle (°):
+    <input id="angle" type="range" min="10" max="80" value="45" step="0.001" />
+    <input id="angleInput" type="number" min="10" max="80" value="45.000" step="0.001" />
+  </label>
+  <button id="runBtn">Run</button>
+  <div class="zoom-controls">
+    🔍
+    <button id="zoomIn">+</button>
+    <button id="zoomOut">−</button>
   </div>
+  <div id="radiusInfo">Radius of curvature:</div>
+</div>
 
-  <canvas id="canvas"></canvas>
+<canvas id="canvas"></canvas>
 
-  <script>
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-    const velocitySlider = document.getElementById("velocity");
-    const angleSlider = document.getElementById("angle");
-    const radiusInfo = document.getElementById("radiusInfo");
-    const runBtn = document.getElementById("runBtn");
+const velocitySlider = document.getElementById("velocity");
+const velocityInput = document.getElementById("velocityInput");
+const angleSlider = document.getElementById("angle");
+const angleInput = document.getElementById("angleInput");
+const radiusInfo = document.getElementById("radiusInfo");
+const runBtn = document.getElementById("runBtn");
+const zoomInBtn = document.getElementById("zoomIn");
+const zoomOutBtn = document.getElementById("zoomOut");
 
-    let v0 = parseFloat(velocitySlider.value);
-    let theta = parseFloat(angleSlider.value) * Math.PI / 180;
-    const g = 9.8;
+const g = 9.8;
+let zoomFactor = 1.0;
 
-    function resizeCanvas() {
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
-    }
+function resizeCanvas() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+}
 
-    function draw() {
-      resizeCanvas();
-      v0 = parseFloat(velocitySlider.value);
-      theta = parseFloat(angleSlider.value) * Math.PI / 180;
+function drawRuler(offsetX, groundY, scale, x_max) {
+  ctx.strokeStyle = "#333";
+  ctx.fillStyle = "#333";
+  ctx.lineWidth = 1;
+  ctx.font = "12px sans-serif";
+  ctx.textAlign = "center";
+  
+  const stepMeters = Math.max(1, Math.round(x_max/10)); // around 10 divisions
+  for (let x = 0; x <= x_max; x += stepMeters) {
+    const px = offsetX + x*scale;
+    ctx.beginPath();
+    ctx.moveTo(px, groundY);
+    ctx.lineTo(px, groundY + 8);
+    ctx.stroke();
+    ctx.fillText(x.toFixed(0) + " m", px, groundY + 20);
+  }
+}
 
-      const t_flight = 2 * v0 * Math.sin(theta) / g;
-      const x_max = v0 * Math.cos(theta) * t_flight;
-      const y_max = (v0 * Math.sin(theta)) ** 2 / (2 * g);
+function draw() {
+  resizeCanvas();
+  let v0 = parseFloat(velocityInput.value);
+  let theta = parseFloat(angleInput.value) * Math.PI / 180;
 
-      const scale = (canvas.width * 0.8) / x_max;
-      const offsetX = canvas.width * 0.1;
-      const groundY = canvas.height * 0.85;
+  const t_flight = 2 * v0 * Math.sin(theta) / g;
+  const x_max = v0 * Math.cos(theta) * t_flight;
+  const y_max = (v0 * Math.sin(theta))**2 / (2 * g);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  let scale = (canvas.width * 0.8) / x_max * zoomFactor;
+  const offsetX = canvas.width * 0.1;
+  const groundY = canvas.height * 0.85;
 
-      // Ground
-      ctx.fillStyle = "#00695c";
-      ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Trajectory
-      ctx.beginPath();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = "#004d80";
-      for (let t = 0; t <= t_flight; t += t_flight / 200) {
-        const x = v0 * Math.cos(theta) * t;
-        const y = v0 * Math.sin(theta) * t - 0.5 * g * t * t;
-        const px = offsetX + x * scale;
-        const py = groundY - y * scale;
-        if (t === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.stroke();
+  // Ground
+  ctx.fillStyle = "#00695c";
+  ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
 
-      // Apex
-      const t_apex = v0 * Math.sin(theta) / g;
-      const x_apex = v0 * Math.cos(theta) * t_apex;
-      const y_apex = y_max;
+  // Draw ruler
+  drawRuler(offsetX, groundY, scale, x_max);
 
-      const px_apex = offsetX + x_apex * scale;
-      const py_apex = groundY - y_apex * scale;
+  // Trajectory
+  ctx.beginPath();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#004d80";
+  for (let t = 0; t <= t_flight; t += t_flight / 200) {
+    const x = v0 * Math.cos(theta) * t;
+    const y = v0 * Math.sin(theta) * t - 0.5 * g * t * t;
+    const px = offsetX + x * scale;
+    const py = groundY - y * scale;
+    if (t === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
 
-      ctx.fillStyle = "red";
-      ctx.beginPath();
-      ctx.arc(px_apex, py_apex, 6, 0, 2 * Math.PI);
-      ctx.fill();
+  // Apex
+  const t_apex = v0 * Math.sin(theta) / g;
+  const x_apex = v0 * Math.cos(theta) * t_apex;
+  const y_apex = y_max;
+  const px_apex = offsetX + x_apex * scale;
+  const py_apex = groundY - y_apex * scale;
 
-      // Radius of curvature at apex
-      const R = (v0 ** 2) * Math.cos(theta) ** 2 / g;
+  ctx.fillStyle = "red";
+  ctx.beginPath();
+  ctx.arc(px_apex, py_apex, 6, 0, 2*Math.PI);
+  ctx.fill();
 
-      // Osculating circle
-      ctx.beginPath();
-      ctx.strokeStyle = "rgba(0, 150, 255, 0.7)";
-      ctx.lineWidth = 2;
-      const circleCenterY = py_apex + R * scale;
-      ctx.arc(px_apex, circleCenterY, R * scale, 0, 2 * Math.PI);
-      ctx.stroke();
+  // Radius of curvature
+  const R = (v0**2) * Math.cos(theta)**2 / g;
 
-      // Draw radius line
-      ctx.beginPath();
-      ctx.strokeStyle = "#0097a7";
-      ctx.moveTo(px_apex, py_apex);
-      ctx.lineTo(px_apex, circleCenterY);
-      ctx.stroke();
+  // Osculating circle
+  ctx.beginPath();
+  ctx.strokeStyle = "rgba(0,150,255,0.7)";
+  ctx.lineWidth = 2;
+  const circleCenterY = py_apex + R * scale;
+  ctx.arc(px_apex, circleCenterY, R * scale, 0, 2*Math.PI);
+  ctx.stroke();
 
-      radiusInfo.textContent = `Radius of curvature: ${R.toFixed(2)} m`;
-    }
+  // Radius line
+  ctx.beginPath();
+  ctx.strokeStyle = "#0097a7";
+  ctx.moveTo(px_apex, py_apex);
+  ctx.lineTo(px_apex, circleCenterY);
+  ctx.stroke();
 
-    runBtn.addEventListener("click", draw);
+  radiusInfo.textContent = `Radius of curvature: ${R.toFixed(3)} m`;
+}
+
+// Sync sliders and inputs
+function syncSliderInput(slider, input, min, max) {
+  slider.addEventListener("input", () => {
+    input.value = parseFloat(slider.value).toFixed(3);
     draw();
-  </script>
+  });
+  input.addEventListener("input", () => {
+    let val = Math.min(Math.max(parseFloat(input.value), min), max);
+    input.value = val.toFixed(3);
+    slider.value = val;
+    draw();
+  });
+}
+
+syncSliderInput(velocitySlider, velocityInput, 5, 50);
+syncSliderInput(angleSlider, angleInput, 10, 80);
+
+runBtn.addEventListener("click", draw);
+
+zoomInBtn.addEventListener("click", () => {
+  zoomFactor = Math.min(zoomFactor * 1.25, 2.0);
+  draw();
+});
+zoomOutBtn.addEventListener("click", () => {
+  zoomFactor = Math.max(zoomFactor / 1.25, 0.5);
+  draw();
+});
+
+// Initial draw
+draw();
+</script>
 </body>
 </html>
