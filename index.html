@@ -14,10 +14,7 @@
     color: #222;
   }
 
-  h2 {
-    margin: 10px 0 5px;
-    color: #004466;
-  }
+  h2 { margin: 10px 0 5px; color: #004466; }
 
   .controls {
     background: #e0f7fa;
@@ -30,65 +27,23 @@
     gap: 10px;
   }
 
-  label {
-    margin: 0 10px;
-    font-weight: bold;
-    color: #006064;
-  }
+  label { margin: 0 10px; font-weight: bold; color: #006064; }
+  input[type=range] { width: 120px; vertical-align: middle; }
+  input[type=number] { width: 80px; padding: 2px 4px; margin-left: 4px; }
 
-  input[type=range] {
-    width: 120px;
-    vertical-align: middle;
-  }
-
-  input[type=number] {
-    width: 80px;
-    padding: 2px 4px;
-    margin-left: 4px;
-  }
-
-  #runBtn {
-    background-color: #00838f;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 6px 14px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background 0.2s ease;
-    margin-left: 10px;
-  }
-
-  #runBtn:hover {
-    background-color: #006064;
-  }
+  #runBtn { background-color: #00838f; color: white; border: none; border-radius: 6px;
+    padding: 6px 14px; font-size: 14px; cursor: pointer; transition: background 0.2s ease; margin-left: 10px; }
+  #runBtn:hover { background-color: #006064; }
 
   .zoom-controls button {
-    background: #e0f2f1;
-    border: 1px solid #00838f;
-    border-radius: 6px;
-    padding: 4px 10px;
-    cursor: pointer;
-    font-size: 16px;
-    margin: 0 2px;
-    transition: background 0.2s;
+    background: #e0f2f1; border: 1px solid #00838f; border-radius: 6px;
+    padding: 4px 10px; cursor: pointer; font-size: 16px; margin: 0 2px; transition: background 0.2s;
   }
+  .zoom-controls button:hover { background: #b2ebf2; }
 
-  .zoom-controls button:hover {
-    background: #b2ebf2;
-  }
+  canvas { width: 100%; height: 600px; display: block; background: linear-gradient(to top, #5cc0ff, #aeeaff); }
 
-  canvas {
-    width: 100%;
-    height: 600px;
-    display: block;
-    background: linear-gradient(to top, #5cc0ff, #aeeaff);
-  }
-
-  #radiusInfo {
-    font-weight: bold;
-    margin: 5px;
-  }
+  #radiusInfo { font-weight: bold; margin: 5px; }
 </style>
 </head>
 <body>
@@ -96,13 +51,13 @@
 <div class="controls">
   <label>
     Velocity (m/s):
-    <input id="velocity" type="range" min="5" max="50" value="25" step="0.001" />
-    <input id="velocityInput" type="number" min="5" max="50" value="25.000" step="0.001" />
+    <input id="velocity" type="range" min="1" max="50" value="25" step="0.1" />
+    <input id="velocityInput" type="number" min="1" max="50" value="25.0" step=".1" />
   </label>
   <label>
     Angle (°):
-    <input id="angle" type="range" min="10" max="80" value="45" step="0.001" />
-    <input id="angleInput" type="number" min="10" max="80" value="45.000" step="0.001" />
+    <input id="angle" type="range" min="1" max="89" value="45" step="0.1" />
+    <input id="angleInput" type="number" min="1" max="89" value="45.0" step=".1" />
   </label>
   <button id="runBtn">Run</button>
   <div class="zoom-controls">
@@ -110,7 +65,7 @@
     <button id="zoomIn">+</button>
     <button id="zoomOut">−</button>
   </div>
-  <div id="radiusInfo">Radius of curvature:</div>
+  <div id="radiusInfo">Radius: 0.000 m | Range: 0.000 m</div>
 </div>
 
 <canvas id="canvas"></canvas>
@@ -130,63 +85,46 @@ const zoomOutBtn = document.getElementById("zoomOut");
 
 const g = 9.8;
 let zoomFactor = 1.0;
+let animationId = null;
 
-function resizeCanvas() {
-  canvas.width = canvas.clientWidth;
-  canvas.height = canvas.clientHeight;
-}
+function resizeCanvas() { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
 
 function drawRuler(offsetX, groundY, scale, x_max) {
-  ctx.strokeStyle = "#333";
-  ctx.fillStyle = "#333";
-  ctx.lineWidth = 1;
-  ctx.font = "12px sans-serif";
-  ctx.textAlign = "center";
-  
-  const stepMeters = Math.max(1, Math.round(x_max/10)); // around 10 divisions
+  ctx.strokeStyle = "#333"; ctx.fillStyle = "#333"; ctx.lineWidth = 1; ctx.font = "12px sans-serif"; ctx.textAlign = "center";
+  const stepMeters = Math.max(1, Math.round(x_max/10));
   for (let x = 0; x <= x_max; x += stepMeters) {
     const px = offsetX + x*scale;
-    ctx.beginPath();
-    ctx.moveTo(px, groundY);
-    ctx.lineTo(px, groundY + 8);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px, groundY); ctx.lineTo(px, groundY + 8); ctx.stroke();
     ctx.fillText(x.toFixed(0) + " m", px, groundY + 20);
   }
 }
 
-function draw() {
+function draw(v0, theta, t_proj) {
   resizeCanvas();
-  let v0 = parseFloat(velocityInput.value);
-  let theta = parseFloat(angleInput.value) * Math.PI / 180;
 
   const t_flight = 2 * v0 * Math.sin(theta) / g;
   const x_max = v0 * Math.cos(theta) * t_flight;
   const y_max = (v0 * Math.sin(theta))**2 / (2 * g);
-
-  let scale = (canvas.width * 0.8) / x_max * zoomFactor;
+  const scale = (canvas.width * 0.8) / x_max * zoomFactor;
   const offsetX = canvas.width * 0.1;
   const groundY = canvas.height * 0.85;
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
   // Ground
-  ctx.fillStyle = "#00695c";
-  ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+  ctx.fillStyle = "#00695c"; ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
 
-  // Draw ruler
+  // Ruler
   drawRuler(offsetX, groundY, scale, x_max);
 
   // Trajectory
-  ctx.beginPath();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "#004d80";
+  ctx.beginPath(); ctx.lineWidth = 3; ctx.strokeStyle = "#004d80";
   for (let t = 0; t <= t_flight; t += t_flight / 200) {
     const x = v0 * Math.cos(theta) * t;
-    const y = v0 * Math.sin(theta) * t - 0.5 * g * t * t;
-    const px = offsetX + x * scale;
-    const py = groundY - y * scale;
-    if (t === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
+    const y = v0 * Math.sin(theta) * t - 0.5 * g * t*t;
+    const px = offsetX + x*scale;
+    const py = groundY - y*scale;
+    if(t===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
   }
   ctx.stroke();
 
@@ -194,65 +132,73 @@ function draw() {
   const t_apex = v0 * Math.sin(theta) / g;
   const x_apex = v0 * Math.cos(theta) * t_apex;
   const y_apex = y_max;
-  const px_apex = offsetX + x_apex * scale;
-  const py_apex = groundY - y_apex * scale;
+  const px_apex = offsetX + x_apex*scale;
+  const py_apex = groundY - y_apex*scale;
 
-  ctx.fillStyle = "red";
-  ctx.beginPath();
-  ctx.arc(px_apex, py_apex, 6, 0, 2*Math.PI);
-  ctx.fill();
+  ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(px_apex, py_apex, 6, 0, 2*Math.PI); ctx.fill();
 
   // Radius of curvature
   const R = (v0**2) * Math.cos(theta)**2 / g;
 
   // Osculating circle
-  ctx.beginPath();
-  ctx.strokeStyle = "rgba(0,150,255,0.7)";
-  ctx.lineWidth = 2;
-  const circleCenterY = py_apex + R * scale;
-  ctx.arc(px_apex, circleCenterY, R * scale, 0, 2*Math.PI);
-  ctx.stroke();
+  ctx.beginPath(); ctx.strokeStyle = "rgba(0,150,255,0.7)"; ctx.lineWidth = 2;
+  const circleCenterY = py_apex + R*scale;
+  ctx.arc(px_apex, circleCenterY, R*scale, 0, 2*Math.PI); ctx.stroke();
 
   // Radius line
-  ctx.beginPath();
-  ctx.strokeStyle = "#0097a7";
-  ctx.moveTo(px_apex, py_apex);
-  ctx.lineTo(px_apex, circleCenterY);
-  ctx.stroke();
+  ctx.beginPath(); ctx.strokeStyle="#0097a7"; ctx.moveTo(px_apex, py_apex); ctx.lineTo(px_apex, circleCenterY); ctx.stroke();
 
-  radiusInfo.textContent = `Radius of curvature: ${R.toFixed(3)} m`;
+  // Draw moving projectile
+  if (t_proj !== undefined && t_proj <= t_flight) {
+    const x_proj = v0 * Math.cos(theta) * t_proj;
+    const y_proj = v0 * Math.sin(theta) * t_proj - 0.5 * g * t_proj*t_proj;
+    const px_proj = offsetX + x_proj*scale;
+    const py_proj = groundY - y_proj*scale;
+    ctx.fillStyle = "orange";
+    ctx.beginPath();
+    ctx.arc(px_proj, py_proj, 8, 0, 2*Math.PI);
+    ctx.fill();
+  }
+
+  radiusInfo.textContent = `Radius: ${R.toFixed(3)} m | Range: ${x_max.toFixed(3)} m`;
 }
 
-// Sync sliders and inputs
-function syncSliderInput(slider, input, min, max) {
-  slider.addEventListener("input", () => {
-    input.value = parseFloat(slider.value).toFixed(3);
-    draw();
-  });
+// Animation
+function animate() {
+  cancelAnimationFrame(animationId);
+  const v0 = parseFloat(velocityInput.value);
+  const theta = parseFloat(angleInput.value) * Math.PI/180;
+  const t_flight = 2*v0*Math.sin(theta)/g;
+  let t = 0;
+  const dt = t_flight/200;
+
+  function step() {
+    draw(v0, theta, t);
+    t += dt;
+    if(t <= t_flight) animationId = requestAnimationFrame(step);
+    else draw(v0, theta); // final frame at landing
+  }
+  step();
+}
+
+// Sync sliders/inputs
+function syncSliderInput(slider, input, min, max){
+  slider.addEventListener("input", () => { input.value=parseFloat(slider.value).toFixed(1); draw(parseFloat(input.value), parseFloat(angleInput.value)*Math.PI/180); });
   input.addEventListener("input", () => {
     let val = Math.min(Math.max(parseFloat(input.value), min), max);
-    input.value = val.toFixed(3);
-    slider.value = val;
-    draw();
+    input.value=val.toFixed(1); slider.value=val; draw(parseFloat(input.value), parseFloat(angleInput.value)*Math.PI/180);
   });
 }
 
 syncSliderInput(velocitySlider, velocityInput, 5, 50);
 syncSliderInput(angleSlider, angleInput, 10, 80);
 
-runBtn.addEventListener("click", draw);
+runBtn.addEventListener("click", animate);
 
-zoomInBtn.addEventListener("click", () => {
-  zoomFactor = Math.min(zoomFactor * 1.25, 2.0);
-  draw();
-});
-zoomOutBtn.addEventListener("click", () => {
-  zoomFactor = Math.max(zoomFactor / 1.25, 0.5);
-  draw();
-});
+zoomInBtn.addEventListener("click", () => { zoomFactor=Math.min(zoomFactor*1.25,2.0); draw(parseFloat(velocityInput.value), parseFloat(angleInput.value)*Math.PI/180); });
+zoomOutBtn.addEventListener("click", () => { zoomFactor=Math.max(zoomFactor/1.25,0.5); draw(parseFloat(velocityInput.value), parseFloat(angleInput.value)*Math.PI/180); });
 
-// Initial draw
-draw();
+draw(parseFloat(velocityInput.value), parseFloat(angleInput.value)*Math.PI/180);
 </script>
 </body>
 </html>
