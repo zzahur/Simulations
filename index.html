@@ -1,143 +1,166 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Projectile Simulator with Osculating Circle</title>
-<style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: linear-gradient(to top, #bde0fe 0%, #caf0f8 100%);
-    height: 100%;
-    overflow: hidden;
-    font-family: sans-serif;
-  }
-  .controls {
-    text-align: center;
-    padding: 10px;
-    background: rgba(255,255,255,0.8);
-    backdrop-filter: blur(6px);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  }
-  .controls label {
-    margin: 0 1em;
-    font-weight: 600;
-  }
-  canvas {
-    width: 100%;
-    height: 600px;
-    display: block;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Projectile Motion & Osculating Circle</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom, #a0d8ef, #f0f9ff);
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      color: #222;
+    }
+
+    h2 {
+      margin: 10px 0 5px;
+      color: #004466;
+    }
+
+    .controls {
+      background: #e0f7fa;
+      padding: 10px;
+      border-bottom: 2px solid #00838f;
+    }
+
+    label {
+      margin: 0 10px;
+      font-weight: bold;
+      color: #006064;
+    }
+
+    input[type=range] {
+      width: 120px;
+    }
+
+    #runBtn {
+      background-color: #00838f;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    #runBtn:hover {
+      background-color: #006064;
+    }
+
+    canvas {
+      width: 100%;
+      height: 600px;  /* fixed height for visibility */
+      display: block;
+      background: linear-gradient(to top, #5cc0ff, #aeeaff);
+    }
+
+    #radiusInfo {
+      font-weight: bold;
+      margin: 5px;
+    }
+  </style>
 </head>
 <body>
-<div class="controls">
-  <label>Velocity v₀: <input type="range" id="v0" min="5" max="80" value="30" step="1"> <span id="v0val">30</span> m/s</label>
-  <label>Angle θ: <input type="range" id="angle" min="5" max="85" value="45" step="1"> <span id="angval">45</span>°</label>
-  <span style="margin-left:2em;">Radius of Curvature (R): <strong id="radiusval">0</strong> m</span>
-</div>
-<canvas id="simCanvas"></canvas>
+  <h2>Projectile Motion with Osculating Circle</h2>
+  <div class="controls">
+    <label>Velocity (m/s): <input id="velocity" type="range" min="5" max="50" value="25" /></label>
+    <label>Angle (°): <input id="angle" type="range" min="10" max="80" value="45" /></label>
+    <button id="runBtn">Run</button>
+    <div id="radiusInfo">Radius of curvature: </div>
+  </div>
 
-<script>
-const g = 9.81; // m/s^2
-const canvas = document.getElementById("simCanvas");
-const ctx = canvas.getContext("2d");
-const v0Slider = document.getElementById("v0");
-const angleSlider = document.getElementById("angle");
-const v0Val = document.getElementById("v0val");
-const angVal = document.getElementById("angval");
-const radiusVal = document.getElementById("radiusval");
+  <canvas id="canvas"></canvas>
 
-let v0 = parseFloat(v0Slider.value);
-let angleDeg = parseFloat(angleSlider.value);
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
 
-// Resize canvas responsively
-function resizeCanvas() {
-  canvas.width = canvas.clientWidth;
-  canvas.height = canvas.clientHeight;
-  draw();
-}
-window.addEventListener("resize", resizeCanvas);
-resizeCanvas();
+    const velocitySlider = document.getElementById("velocity");
+    const angleSlider = document.getElementById("angle");
+    const radiusInfo = document.getElementById("radiusInfo");
+    const runBtn = document.getElementById("runBtn");
 
-v0Slider.oninput = angleSlider.oninput = function() {
-  v0 = parseFloat(v0Slider.value);
-  angleDeg = parseFloat(angleSlider.value);
-  v0Val.textContent = v0;
-  angVal.textContent = angleDeg;
-  draw();
-};
+    let v0 = parseFloat(velocitySlider.value);
+    let theta = parseFloat(angleSlider.value) * Math.PI / 180;
+    const g = 9.8;
 
-function draw() {
-  const w = canvas.width;
-  const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
+    function resizeCanvas() {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    }
 
-  // background
-  const grd = ctx.createLinearGradient(0, 0, 0, h);
-  grd.addColorStop(0, "#90e0ef");
-  grd.addColorStop(1, "#00b4d8");
-  ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, w, h);
+    function draw() {
+      resizeCanvas();
+      v0 = parseFloat(velocitySlider.value);
+      theta = parseFloat(angleSlider.value) * Math.PI / 180;
 
-  // ground
-  ctx.fillStyle = "#6c757d";
-  ctx.fillRect(0, h - 50, w, 50);
+      const t_flight = 2 * v0 * Math.sin(theta) / g;
+      const x_max = v0 * Math.cos(theta) * t_flight;
+      const y_max = (v0 * Math.sin(theta)) ** 2 / (2 * g);
 
-  const angle = angleDeg * Math.PI / 180;
-  const vx = v0 * Math.cos(angle);
-  const vy = v0 * Math.sin(angle);
+      const scale = (canvas.width * 0.8) / x_max;
+      const offsetX = canvas.width * 0.1;
+      const groundY = canvas.height * 0.85;
 
-  const t_flight = (2 * vy) / g;
-  const t_apex = vy / g;
-  const x_apex = vx * t_apex;
-  const y_apex = (vy * vy) / (2 * g);
-  const R = (vx * vx) / g; // radius of curvature at apex
-  radiusVal.textContent = R.toFixed(2);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // scaling factors
-  const xRange = vx * t_flight;
-  const yRange = y_apex * 1.4;
-  const margin = 20;
-  const scaleX = (w - 2 * margin) / xRange;
-  const scaleY = (h - 100 - 2 * margin) / yRange;
-  const s = Math.min(scaleX, scaleY);
+      // Ground
+      ctx.fillStyle = "#00695c";
+      ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
 
-  function toX(x) { return margin + x * s; }
-  function toY(y) { return h - 50 - y * s; }
+      // Trajectory
+      ctx.beginPath();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#004d80";
+      for (let t = 0; t <= t_flight; t += t_flight / 200) {
+        const x = v0 * Math.cos(theta) * t;
+        const y = v0 * Math.sin(theta) * t - 0.5 * g * t * t;
+        const px = offsetX + x * scale;
+        const py = groundY - y * scale;
+        if (t === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
 
-  // trajectory
-  ctx.beginPath();
-  for (let i = 0; i <= 200; i++) {
-    const t = (i / 200) * t_flight;
-    const x = vx * t;
-    const y = vy * t - 0.5 * g * t * t;
-    const X = toX(x);
-    const Y = toY(y);
-    if (i === 0) ctx.moveTo(X, Y);
-    else ctx.lineTo(X, Y);
-  }
-  ctx.strokeStyle = "#03045e";
-  ctx.lineWidth = 2;
-  ctx.stroke();
+      // Apex
+      const t_apex = v0 * Math.sin(theta) / g;
+      const x_apex = v0 * Math.cos(theta) * t_apex;
+      const y_apex = y_max;
 
-  // apex point
-  const Xapex = toX(x_apex);
-  const Yapex = toY(y_apex);
-  ctx.beginPath();
-  ctx.arc(Xapex, Yapex, 6, 0, 2*Math.PI);
-  ctx.fillStyle = "#ef233c";
-  ctx.fill();
+      const px_apex = offsetX + x_apex * scale;
+      const py_apex = groundY - y_apex * scale;
 
-  // osculating circle
-  const Cx = toX(x_apex);
-  const Cy = toY(y_apex - R);
-  const Rpx = R * s;
-  ctx.beginPath();
-  ctx.arc(Cx, Cy, Rpx, 0, 2*Math.PI);
-  ctx.strokeStyle = "#00b4d8";
-  ctx.lineWidth = 2;
-  ctx.stroke();
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(px_apex, py_apex, 6, 0, 2 * Math.PI);
+      ctx.fill();
 
-  // line
+      // Radius of curvature at apex
+      const R = (v0 ** 2) * Math.cos(theta) ** 2 / g;
+
+      // Osculating circle
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(0, 150, 255, 0.7)";
+      ctx.lineWidth = 2;
+      const circleCenterY = py_apex + R * scale;
+      ctx.arc(px_apex, circleCenterY, R * scale, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // Draw radius line
+      ctx.beginPath();
+      ctx.strokeStyle = "#0097a7";
+      ctx.moveTo(px_apex, py_apex);
+      ctx.lineTo(px_apex, circleCenterY);
+      ctx.stroke();
+
+      radiusInfo.textContent = `Radius of curvature: ${R.toFixed(2)} m`;
+    }
+
+    runBtn.addEventListener("click", draw);
+    draw();
+  </script>
+</body>
+</html>
